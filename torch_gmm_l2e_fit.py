@@ -35,7 +35,7 @@ def build_toy_dataset(N, K=None, D=None, pi=None):
 
 sigmoid = torch.nn.Sigmoid()
 softmax = torch.nn.Softmax(dim=0)
-softplus = torch.nn.Softplus()
+softplus = torch.nn.Softplus(beta=1)
 
 def make_scale_tril(gammas, dim, full_cov=True):
     if not(full_cov):
@@ -65,10 +65,36 @@ def make_scale_tril_not_convoluted(diags, off_diags=None):
     o_idx = torch.tril_indices(d, d)[0] != torch.tril_indices(d, d)[1]
     o_idx0, o_idx1 = torch.tril_indices(d, d)[:, o_idx]
     tril = torch.zeros(k, d, d)
-    tril[:, d_idx0, d_idx1] = diags
+    tril[:, range(d), range(d)] = diags
     tril[:, o_idx0, o_idx1] = off_diags
     return tril
 
+
+def update_tril(entries, D):
+    tril = torch.zeros(D, D)
+    tril[range(D), range(D)] = softplus(entries[0:D])
+    off_idx = torch.tril_indices(D, D)[0] != torch.tril_indices(D, D)[1]
+    a, b = torch.tril_indices(D, D)[:, off_idx]
+    tril[a, b] = entries[D:]
+    return tril
+
+def update_mvns(pi, mu_opt, tril_entries):
+    mvns = [
+        MVN(
+            loc=mu_opt[i], scale_tril=update_tril(tril_entries[i], D), validate_args=True
+        ) for i in range(K)
+    ]
+
+    diffs = []
+    for i in range(K):
+        for j in range(K):
+            m = MVN(
+                mu_opt[i] - mu_opt[j],
+                covariance_matrix=mvns[i].covariance_matrix + mvns[j].covariance_matrix,
+                validate_args=True
+            )
+            diffs.append((m, pi[i], pi[j]))
+    return mvns, diffs
 
 
 class GaussianMixtureModel(Module):
