@@ -45,7 +45,7 @@ class GaussianMixtureModel(Module):
         super().__init__()
 
         # model structure
-        init = torch.nn.init.normal_
+        self.init = torch.nn.init.normal_
         self.k = num_mixtures
         self.d = num_dim
         self.full_cov = full_cov
@@ -57,21 +57,21 @@ class GaussianMixtureModel(Module):
             self.weights_bijector = sigmoid
 
         # initialize parameters
-        self.pi = init(torch.empty(self.k, requires_grad=True))
+        self.pi = self.init(torch.empty(self.k, requires_grad=True))
 
-        self.mu = init(
+        self.mu = self.init(
             torch.empty(self.k, self.d, requires_grad=True)
         )
 
         if full_cov:
-            self.tril_entries = init(
+            self.tril_entries = self.init(
                 torch.empty(
                     self.k, self.d * (self.d + 1) // 2, requires_grad=True
                 )
             )
 
         else:
-            self.tril_entries = init(
+            self.tril_entries = self.init(
                 torch.empty(self.k, self.d, requires_grad=True)
             )
 
